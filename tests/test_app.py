@@ -60,3 +60,37 @@ def test_mainwindow_constructs_offscreen() -> None:
     )
     proc = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
     assert proc.returncode == 0, f"GUI construction failed:\n{proc.stderr[-2000:]}"
+
+
+def test_populate_results_reflects_real_output_tree(tmp_path: Path) -> None:
+    # Same fresh-subprocess pattern as test_mainwindow_constructs_offscreen — a
+    # QApplication in-process alongside earlier heavy imports can segfault.
+    import subprocess
+    import sys
+
+    (tmp_path / "stems").mkdir()
+    (tmp_path / "stems" / "bass.wav").write_bytes(b"")
+    (tmp_path / "midi").mkdir()
+    (tmp_path / "midi" / "bass.mid").write_bytes(b"")
+    (tmp_path / "score.pdf").write_bytes(b"")
+
+    script = (
+        "import os; os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')\n"
+        "from pathlib import Path\n"
+        "from PySide6.QtWidgets import QApplication\n"
+        "from demixer.app.gui import MainWindow\n"
+        "app = QApplication.instance() or QApplication([])\n"
+        "w = MainWindow()\n"
+        f"w._populate_results(Path({str(tmp_path)!r}))\n"
+        "top_labels = [w._results.topLevelItem(i).text(0)\n"
+        "              for i in range(w._results.topLevelItemCount())]\n"
+        "assert 'stems' in top_labels, top_labels\n"
+        "assert 'score.pdf' in top_labels, top_labels\n"
+        "stems_item = next(w._results.topLevelItem(i) for i in range(w._results.topLevelItemCount())\n"
+        "                   if w._results.topLevelItem(i).text(0) == 'stems')\n"
+        "child_labels = [stems_item.child(j).text(0) for j in range(stems_item.childCount())]\n"
+        "assert child_labels == ['bass.wav'], child_labels\n"
+        "w.close()\n"
+    )
+    proc = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
+    assert proc.returncode == 0, f"tree population failed:\n{proc.stderr[-2000:]}"
