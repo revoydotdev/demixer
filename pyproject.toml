@@ -1,6 +1,6 @@
 [project]
 name = "demixer"
-version = "0.0.1"
+version = "0.1.0"
 description = "Stem separation, transcription, sheet music, and DAW round-trip for any audio track."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
