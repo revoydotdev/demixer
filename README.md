@@ -1,5 +1,14 @@
 # demixer
 
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![GUI: PySide6/Qt](https://img.shields.io/badge/GUI-PySide6%20%2F%20Qt-41cd52.svg)](https://pypi.org/project/PySide6/)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
+[![Status: early, active](https://img.shields.io/badge/status-early%20%7C%20active-yellow.svg)]()
+[![Version 0.0.1](https://img.shields.io/badge/version-0.0.1-informational.svg)]()
+[![Separation: Demucs v4](https://img.shields.io/badge/separation-Demucs%20v4-orange.svg)](https://github.com/facebookresearch/demucs)
+[![Analysis: essentia](https://img.shields.io/badge/analysis-essentia-lightgrey.svg)](https://essentia.upf.edu/)
+[![Transcription: basic-pitch](https://img.shields.io/badge/transcription-basic--pitch-lightgrey.svg)](https://github.com/spotify/basic-pitch)
+
 **Turn any audio track into stems, MIDI, a lead sheet, and an editable DAW session.**
 
 demixer is an end-to-end music-understanding pipeline: it separates a song into
