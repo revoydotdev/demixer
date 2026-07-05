@@ -22,10 +22,11 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QListWidget,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -136,9 +137,10 @@ class MainWindow(QWidget):
         root.addWidget(self._log, stretch=1)
 
         # --- results ---
-        self._results = QListWidget()
+        self._results = QTreeWidget()
+        self._results.setHeaderHidden(True)
         self._results.itemDoubleClicked.connect(self._open_result_item)
-        self._results.setMaximumHeight(150)
+        self._results.setMaximumHeight(220)
         root.addWidget(QLabel("Results (double-click to open):"))
         root.addWidget(self._results)
         self._open_dir_btn = QPushButton("Open output folder")
@@ -211,36 +213,39 @@ class MainWindow(QWidget):
 
     def _populate_results(self, out_dir: Path) -> None:
         self._results.clear()
-        wanted = [
-            ("stems/", "🎚  stems (WAV)"),
-            ("midi/", "🎹  MIDI"),
-            ("score.pdf", "🎼  sheet music (PDF)"),
-            ("score.musicxml", "🎼  MusicXML"),
-            ("harmony.json", "🎵  harmony analysis"),
-            ("reharmonization.mid", "🔁  reharmonization MIDI"),
-        ]
-        for rel, label in wanted:
-            p = out_dir / rel
-            if p.exists():
-                self._results.addItem(f"{label}   —   {rel}")
-        # DAW projects + archive
-        for pat, label in ((".rpp", "🎛  Reaper project"), (".dawproject", "🎛  DAWproject"),
-                          (".demixer", "📦  bundle archive")):
-            for f in sorted(out_dir.parent.glob(f"*{pat}")) + sorted(out_dir.glob(f"*{pat}")):
-                self._results.addItem(f"{label}   —   {f.name}")
-        self._results.addItem(f"📁  {out_dir}")
+        if not out_dir.is_dir():
+            return
+
+        def _leaf(path: Path) -> QTreeWidgetItem:
+            item = QTreeWidgetItem([path.name])
+            item.setData(0, Qt.ItemDataRole.UserRole, str(path))
+            return item
+
+        for entry in sorted(out_dir.iterdir()):
+            if entry.is_dir():
+                parent = _leaf(entry)
+                for child in sorted(entry.iterdir()):
+                    if child.is_file():
+                        parent.addChild(_leaf(child))
+                self._results.addTopLevelItem(parent)
+            elif entry.is_file():
+                self._results.addTopLevelItem(_leaf(entry))
+        # sibling DAW-project files + bundle archive live next to out_dir
+        for pat in (".rpp", ".dawproject", ".demixer"):
+            for f in sorted(out_dir.parent.glob(f"*{pat}")):
+                self._results.addTopLevelItem(_leaf(f))
+        self._results.addTopLevelItem(_leaf(out_dir))
 
     def _open_out_dir(self) -> None:
         if self._out_dir:
             _open_path(self._out_dir)
 
-    def _open_result_item(self, item) -> None:
-        if not self._out_dir:
-            return
-        text = item.text()
-        rel = text.split("—")[-1].strip()
-        target = self._out_dir / rel
-        _open_path(target if target.exists() else self._out_dir)
+    def _open_result_item(self, item: QTreeWidgetItem, _column: int) -> None:
+        path = item.data(0, Qt.ItemDataRole.UserRole)
+        if path:
+            _open_path(Path(path))
+        elif self._out_dir:
+            _open_path(self._out_dir)
 
 
 def _open_path(path: Path) -> None:
