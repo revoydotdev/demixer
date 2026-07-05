@@ -1,0 +1,24 @@
+* text=auto eol=lf
+
+*.py text
+*.toml text
+*.md text
+*.txt text
+*.yml text
+*.yaml text
+*.cfg text
+*.ini text
+
+*.wav binary
+*.flac binary
+*.mp3 binary
+*.m4a binary
+*.ogg binary
+*.mid binary
+*.midi binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mscz binary
+*.demixer binary
