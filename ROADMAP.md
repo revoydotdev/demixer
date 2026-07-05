@@ -5,7 +5,7 @@ End-to-end music deconstruction tool: separates a song into stems (Demucs), tran
 Post-audit hardening — the full pipeline runs end-to-end (exit 0 across 20+ genres, all engine backends); 14 bugs found and fixed in a deep audit pass (2026-05-24); accuracy validated against Isophonics ground truth (key 0.763, tempo 0.916, chord majmin 0.752 with BTC). Version 0.0.1, AGPL-3.0, 129 passing tests.
 
 Outstanding work:
-- **PySide6 GUI**: shell constructs and imports cleanly (headless smoke-tested); interaction logic (file picker, pipeline progress, output view) is incomplete.
+- **PySide6 GUI**: interaction logic wired — file picker, live pipeline progress, and an output file tree reflecting the real run output (smoke-tested).
 - **ADTOF drums**: shipped opt-in (`--drums adtof`, onset-F1 0.975 vs 0.825 spectral); not promoted to default pending an ear-check on real-stem class accuracy.
 - **YourMT3+ polyphony**: upgrade path researched and attempted; blocked by upstream breakage (inference adapter broken, pytorch-port LFS smudge broken as of 2026-05-24).
 - **Score engraving quality**: current fixed 16th-grid quantization is robust but naive; learned rhythm quantization (arXiv:2508.19262) identified as the highest perceived-quality gain — medium-high effort, deferred.
@@ -15,11 +15,6 @@ Outstanding work:
 <!-- revoy:begin -->
 ```toml
 phase = "post-audit hardening"
-
-[[todo]]
-line = "Complete PySide6 GUI interaction logic: file picker, pipeline stage progress display, and output file tree"
-difficulty = 45
-priority = "MED"
 
 [[todo]]
 line = "Promote ADTOF drums to default after an ear-check on real-stem class accuracy vs the spectral classifier"
