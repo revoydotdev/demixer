@@ -1,7 +1,7 @@
 [project]
 name = "demixer"
 version = "0.1.0"
-description = "Stem separation, transcription, sheet music, and DAW round-trip for any audio track."
+description = "Experimental audio-to-production-material pipeline: stems, MIDI, MusicXML scores, DAW-handoff files, and optional musical analysis."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 license = { text = "AGPL-3.0-or-later" }
