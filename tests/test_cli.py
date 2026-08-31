@@ -5,9 +5,28 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 from demixer.cli.__main__ import _SILENT_STEM_PEAK, _stem_is_silent
+
+
+def test_cli_help_doesnt_load_pipeline_runtime(capsys, monkeypatch) -> None:
+    from demixer.cli.__main__ import main
+
+    real_import = __import__("builtins").__import__
+
+    def no_numpy(name, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if name == "numpy":
+            raise ModuleNotFoundError("No module named 'numpy'", name="numpy")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", no_numpy)
+    with pytest.raises(SystemExit) as excinfo:
+        main(["process", "--help"])
+
+    assert excinfo.value.code == 0
+    assert "demixer" in capsys.readouterr().out.lower()
 
 
 def _write(path: Path, peak: float, sr: int = 44_100, dur_s: float = 0.5) -> Path:

@@ -2,9 +2,18 @@ End-to-end music deconstruction tool: separates a song into stems (Demucs), tran
 
 ## Current phase
 
-Post-audit hardening — the full pipeline runs end-to-end (exit 0 across 20+ genres, all engine backends); 14 bugs found and fixed in a deep audit pass (2026-05-24); accuracy validated against Isophonics ground truth (key 0.763, tempo 0.916, chord majmin 0.752 with BTC). Version 0.0.1, AGPL-3.0, 129 passing tests.
+Distribution hold — demixer remains experimental source material, not a
+one-command installable release. Its `project.dependencies` intentionally does
+not yet declare the audio/ML runtime or isolated model workers, so a fresh
+`uv sync` can show CLI help but cannot process audio. Historical end-to-end and
+ground-truth measurements are not a current release verification claim until a
+reproducible runtime and test baseline are published. Package version: 0.1.0;
+license: AGPL-3.0-or-later.
 
 Outstanding work:
+- **Reproducible distribution**: declare, lock, and test a supported runtime
+  profile (including FFmpeg, model weights, and worker setup) before claiming a
+  clean-install processing path or current accuracy figures.
 - **PySide6 GUI**: interaction logic wired — file picker, live pipeline progress, and an output file tree reflecting the real run output (smoke-tested).
 - **ADTOF drums**: shipped opt-in (`--drums adtof`, onset-F1 0.975 vs 0.825 spectral); not promoted to default pending an ear-check on real-stem class accuracy.
 - **YourMT3+ polyphony**: upgrade path researched and attempted; blocked by upstream breakage (inference adapter broken, pytorch-port LFS smudge broken as of 2026-05-24).

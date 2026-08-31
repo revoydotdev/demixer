@@ -19,38 +19,6 @@ import logging
 import sys
 from pathlib import Path
 
-import numpy as np
-
-from demixer.core.analysis import chords as chords_mod
-from demixer.core.analysis import key as key_mod
-from demixer.core.analysis import tempo_beats as tb_mod
-from demixer.core.bundle import BundleMetadata, write_bundle, zip_bundle
-from demixer.core.ingest import ingest
-from demixer.core.project.dawproject import StemTrack as DPStemTrack
-from demixer.core.project.dawproject import write_dawproject
-from demixer.core.project.dragin import StemTrack as DIStemTrack
-from demixer.core.project.dragin import write_dragin
-from demixer.core.project.flstudio import StemTrack as FLStemTrack
-from demixer.core.project.flstudio import write_flp, write_flpianoroll_scripts
-from demixer.core.project.reaper import StemTrack, write_rpp
-from demixer.core.score.musicxml import build_score, write_musicxml
-from demixer.core.score.quantize import quantize_midi
-from demixer.core.score.render import (
-    musescore_available,
-    render_audio,
-    render_mscz,
-    render_pdf,
-    render_png,
-    render_svg,
-)
-from demixer.core.separation import STEM_NAMES, separate, separate_loop_aware, write_stems
-from demixer.core.transcription.drums import transcribe_drums
-from demixer.core.transcription.pitched import (
-    InstrumentHint,
-    transcribe_pitched,
-    write_midi,
-)
-
 log = logging.getLogger("demixer")
 
 # Stems whose peak amplitude is below this are treated as empty (Demucs zeroes
@@ -60,12 +28,13 @@ _SILENT_STEM_PEAK = 0.01
 
 
 def _stem_is_silent(wav_path: Path) -> bool:
+    import numpy as np
     import soundfile as sf
     y, _ = sf.read(wav_path, always_2d=True)
     return bool(np.max(np.abs(y)) < _SILENT_STEM_PEAK) if y.size else True
 
 # Map stem names to basic-pitch instrument hints
-_HINT_FOR_STEM: dict[str, InstrumentHint] = {
+_HINT_FOR_STEM: dict[str, str] = {
     "vocals": "vocals",
     "bass":   "bass",
     "drums":  "drums",  # signals "skip / not yet wired"
@@ -84,7 +53,7 @@ def _build_parser() -> argparse.ArgumentParser:
     proc.add_argument("-o", "--output", required=True, help="output bundle directory")
     proc.add_argument(
         "--model",
-        choices=list(STEM_NAMES.keys()),
+        choices=["htdemucs", "htdemucs_ft", "htdemucs_6s"],
         default="htdemucs",
         help="Demucs model variant (default: %(default)s)",
     )
@@ -199,6 +168,36 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def cmd_process(args: argparse.Namespace) -> int:
+    # Keep parser and ``demixer process --help`` usable from a fresh checkout.
+    # The experimental pipeline's heavyweight runtime is intentionally not
+    # declared as an installable dependency set yet; importing it at module load
+    # time made even help text crash before we could explain that limitation.
+    try:
+        import numpy as np
+
+        from demixer.core.analysis import chords as chords_mod
+        from demixer.core.analysis import key as key_mod
+        from demixer.core.analysis import tempo_beats as tb_mod
+        from demixer.core.bundle import BundleMetadata, write_bundle, zip_bundle
+        from demixer.core.ingest import ingest
+        from demixer.core.project.dawproject import StemTrack as DPStemTrack
+        from demixer.core.project.dawproject import write_dawproject
+        from demixer.core.project.dragin import StemTrack as DIStemTrack
+        from demixer.core.project.dragin import write_dragin
+        from demixer.core.project.flstudio import StemTrack as FLStemTrack
+        from demixer.core.project.flstudio import write_flp, write_flpianoroll_scripts
+        from demixer.core.project.reaper import StemTrack, write_rpp
+        from demixer.core.separation import separate, separate_loop_aware, write_stems
+        from demixer.core.transcription.drums import transcribe_drums
+        from demixer.core.transcription.pitched import transcribe_pitched, write_midi
+    except ModuleNotFoundError as exc:
+        log.error(
+            "The experimental pipeline runtime is not installed (%s). "
+            "See README.md#requirements-and-current-installation-status.",
+            exc.name,
+        )
+        return 2
+
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)-5s %(name)s | %(message)s",
@@ -529,8 +528,8 @@ def _write_harmony(bundle_dir, chords, key_estimate, midis, reharm=None):  # typ
 def _engrave_score(
     bundle_dir: Path,
     midis: dict[str, object],
-    tempo_beats: "tb_mod.TempoBeats",
-    key_estimate: "key_mod.KeyEstimate",
+    tempo_beats: object,
+    key_estimate: object,
     project_stem: str,
     *,
     renders: tuple[str, ...] = ("pdf", "mscz"),
@@ -540,6 +539,17 @@ def _engrave_score(
     Raises on a hard failure (e.g. music21 MusicXML export StreamException); the
     caller treats the whole score stage as best-effort and continues.
     """
+    from demixer.core.score.musicxml import build_score, write_musicxml
+    from demixer.core.score.quantize import quantize_midi
+    from demixer.core.score.render import (
+        musescore_available,
+        render_audio,
+        render_mscz,
+        render_pdf,
+        render_png,
+        render_svg,
+    )
+
     log.info("quantizing %d MIDI parts and engraving score", len(midis))
     quantized = {
         name: quantize_midi(m, tempo_beats.beat_times_s, subdivisions_per_beat=4)
