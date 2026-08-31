@@ -1,159 +1,204 @@
+<div align="center">
+
 # demixer
 
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
-[![GUI: PySide6/Qt](https://img.shields.io/badge/GUI-PySide6%20%2F%20Qt-41cd52.svg)](https://pypi.org/project/PySide6/)
-[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
-[![Status: early, active](https://img.shields.io/badge/status-early%20%7C%20active-yellow.svg)]()
-[![Version 0.0.1](https://img.shields.io/badge/version-0.0.1-informational.svg)]()
-[![Separation: Demucs v4](https://img.shields.io/badge/separation-Demucs%20v4-orange.svg)](https://github.com/facebookresearch/demucs)
-[![Analysis: essentia](https://img.shields.io/badge/analysis-essentia-lightgrey.svg)](https://essentia.upf.edu/)
-[![Transcription: basic-pitch](https://img.shields.io/badge/transcription-basic--pitch-lightgrey.svg)](https://github.com/spotify/basic-pitch)
+### Audio analysis and production handoff, from one track
 
-**Turn any audio track into stems, MIDI, a lead sheet, and an editable DAW session.**
+Separate a recording into stems, derive MIDI and musical analysis, engrave a score,
+and assemble DAW-oriented project files in one inspectable bundle.
 
-demixer is an end-to-end music-understanding pipeline: it separates a song into
-instrument stems, transcribes each to MIDI, analyzes tempo / key / chords / harmony,
-engraves a score, and exports a ready-to-open project for your DAW — all from a single
-input file.
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Desktop GUI](https://img.shields.io/badge/GUI-PySide6%20%2F%20Qt-41CD52)](https://pypi.org/project/PySide6/)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-3DA639)](https://www.gnu.org/licenses/agpl-3.0.html)
+[![Status: experimental](https://img.shields.io/badge/Status-experimental-8B5CF6)](https://github.com/revoydotdev/demixer)
 
-> **Status:** early, active development. The core pipeline runs end-to-end; engines and
-> output formats are still being hardened. Interfaces may change.
+</div>
 
----
+demixer is an experimental, desktop-oriented Python pipeline for turning an audio
+file into production material: separated stems, per-stem MIDI where transcription
+succeeds, tempo/key/chord analysis, a MusicXML score, and project files for several
+DAW workflows. It is designed for exploration and handoff, not as a substitute for
+critical listening or editorial review. Source separation, transcription, beat
+tracking, and chord recognition are estimates and should be checked before release
+or performance use.
 
-## What it does
+## At a glance
 
-```
-  input.{mp3,flac,wav,m4a,ogg}
-            │
-            ▼
-   ┌─────────────────┐
-   │  1. ingest      │  decode → 44.1 kHz stereo float32 → EBU R128 loudness normalize
-   ├─────────────────┤
-   │  2. separate    │  Demucs v4 → drums · bass · other · vocals  (+ optional 6-stem,
-   │                 │  BS-RoFormer vocals)
-   ├─────────────────┤
-   │  3. analyze     │  tempo + beats + downbeats (beat_this, confidence-gated)
-   │                 │  key (essentia, on the drums-excluded mix)
-   │                 │  chords (autochord triads · or BTC 170-class)
-   │                 │  harmony + reharmonization  (opt-in)
-   ├─────────────────┤
-   │  4. transcribe  │  pitched stems → MIDI (basic-pitch · or MR-MT3)
-   │                 │  drums → MIDI (spectral · or ADTOF)
-   ├─────────────────┤
-   │  5. score       │  quantize → MusicXML → Verovio SVG → MuseScore PDF/MSCZ/PNG/audio
-   ├─────────────────┤
-   │  6. project     │  Reaper .rpp · .dawproject · drag-in stem+MIDI bundle
-   ├─────────────────┤
-   │  7. bundle      │  everything packed into a single .demixer archive
-   └─────────────────┘
+```text
+audio file
+    |
+    +-- ingest             ffmpeg decode -> 44.1 kHz stereo normalization
+    +-- separation         Demucs stems (four or six sources)
+    +-- musical analysis   beats, downbeats, tempo, key, chords
+    +-- transcription      pitched parts and drums -> MIDI
+    +-- score              quantized MIDI -> MusicXML -> SVG / optional MuseScore renders
+    +-- DAW handoff        Reaper, DAWproject, FL Studio, and drag-in material
+    `-- archive            directory bundle + sibling .demixer ZIP
 ```
 
-## Install
+The command-line entry point is `demixer process`; an optional Qt desktop shell
+launches the same pipeline in a child process and streams its log and progress.
 
-Requires **Python 3.11** and [uv](https://docs.astral.sh/uv/). System tools: `ffmpeg`
-(decode) and, for notation rendering, **MuseScore 4** on `PATH`.
+## Capabilities
+
+| Area | Current implementation |
+| --- | --- |
+| Separation | Demucs `htdemucs` (default), `htdemucs_ft`, or six-source `htdemucs_6s`; a BS-RoFormer vocals replacement is available only when its isolated worker is installed. |
+| Timing and tonality | `beat_this` beat/downbeat tracking with a librosa fallback; key estimation uses Essentia, preferring a drums-excluded mix after separation. |
+| Chords | BTC is the CLI default and runs in an isolated worker; `autochord` is the in-environment alternative. Both results are retained as time-stamped chord segments. |
+| MIDI | Basic Pitch is the default for pitched stems. With `--transcriber mt3`, MT3 handles `other`, `piano`, and `guitar`; bass and vocals remain on Basic Pitch. Drums use the spectral classifier by default or the isolated ADTOF worker. |
+| Notation | MIDI is quantized and written as MusicXML, then rendered to SVG with Verovio. PDF and MSCZ are requested by default but are emitted only when MuseScore is available; PNG and MP3 preview rendering are opt-in. |
+| Project handoff | Reaper `.rpp`, `.dawproject`, FL Studio `.flp`, FL Studio piano-roll scripts, and a drag-in folder containing metadata and references to the top-level stems/MIDI. |
+| Harmony | `--harmony` writes harmonic descriptors, transitions, and substitutions. `--reharmonize` additionally writes a block-chord MIDI progression. |
+
+The pipeline continues past several optional-stage failures so that successful
+artifacts can still be bundled. A completed command therefore means the requested
+pipeline reached its end, not that every optional model or renderer produced an
+artifact; review the log and bundle contents.
+
+## Command line
+
+After preparing a complete runtime environment, process one source file into a
+specific bundle directory:
 
 ```bash
-git clone https://github.com/revelri/demixer
-cd demixer
-uv sync --extra dev          # add --extra gui for the PySide6 desktop shell
+demixer process "song.flac" -o build/song
 ```
 
-## Usage
+Useful variations:
 
 ```bash
-# Full pipeline → ./out/<track>/ (+ .demixer archive)
-uv run demixer process "song.flac" -o out/
+# Use the six-source Demucs model and preserve floating-point stem samples.
+demixer process song.flac -o build/song --model htdemucs_6s --stem-format float
 
-# Faster iteration: skip the slow stages while developing
-uv run demixer process song.flac -o out/ --skip separate --skip transcribe
+# Choose isolated-worker alternatives when those workers have been set up.
+demixer process song.flac -o build/song \
+  --transcriber mt3 --chords btc --drums adtof --roformer-vocals
 
-# Pick engines
-uv run demixer process song.flac -o out/ \
-    --model htdemucs_6s --transcriber mt3 --chords btc --drums adtof
+# Treat a supplied or sibling MIDI file as the authority for tempo and meter.
+demixer process song.flac -o build/song --midi-hint auto
 
-# Read-only harmony analysis + a tritone-substitution reharmonization
-uv run demixer process song.flac -o out/ --harmony --reharmonize tritone
+# Ask for harmonic analysis and a reharmonized MIDI sketch.
+demixer process song.flac -o build/song --harmony --reharmonize tritone
+
+# Iterate without the slowest stages.
+demixer process song.flac -o build/song --skip separate --skip transcribe
 ```
 
-### Output bundle
+Run `demixer process --help` in a prepared environment for the full option list.
+Notable controls include repeat-aware separation (`--detect-loops`), compact
+archives (`--compact-archive`), selectable stem formats, score-render formats, and
+individual stage skips.
 
+## Bundle contents
+
+With the default PCM-24 stem format, a successful full run to `build/song` is
+organized approximately as follows. Optional files appear only when their stages
+succeed and have not been skipped.
+
+```text
+build/song/
+├── manifest.json              bundle schema, version, model labels, file list
+├── analysis.json              source hash, loudness, tempo, beats, key, chords
+├── stems/                     separated audio stems
+├── midi/                      transcribed stem MIDI
+├── score.musicxml             engraved-score source
+├── score/                     Verovio SVG pages
+├── score.pdf / score.mscz     when MuseScore is available and requested
+├── song.rpp                   Reaper project
+├── song.dawproject            DAWproject archive
+├── song.flp                   FL Studio project
+├── flstudio_scripts/          FL Studio piano-roll scripts
+├── dragin/                    DAW-agnostic metadata and import guidance
+├── harmony.json               with --harmony or --reharmonize
+└── reharmonization.mid        with --reharmonize
+
+build/song.demixer             ZIP snapshot of the bundle directory
 ```
-out/<track>/
-├── stems/        drums.wav · bass.wav · other.wav · vocals.wav
-├── midi/         <stem>.mid per transcribed stem
-├── analysis.json tempo · beats · downbeats · key · chords (with confidence)
-├── score.*       musicxml · svg · pdf · mscz · preview mp3
-├── <track>.rpp · <track>.dawproject · dragin/   DAW round-trip
-├── harmony.json  (with --harmony)
-└── <track>.demixer   single-file zip of the above
-```
 
-## Engines
+`--compact-archive` omits loose `stems/` from the ZIP only when a DAWproject file
+is present, because that format embeds the audio. The unarchived bundle keeps its
+stems. If analysis is skipped, the command instead writes a minimal partial
+`manifest.json` and returns without the normal bundle artifacts.
 
-| Stage | Default | Alternative |
-|-------|---------|-------------|
-| Separation | Demucs `htdemucs` | `htdemucs_6s` (adds guitar/piano), BS-RoFormer vocals |
-| Tempo/beats | beat_this | librosa (automatic fallback) |
-| Key | essentia KeyExtractor | — |
-| Chords | autochord (triads) | BTC (170-class, 7ths/extensions) |
-| Pitched transcription | basic-pitch | MR-MT3 |
-| Drum transcription | spectral (librosa) | ADTOF (learned, GM classes) |
+## Desktop application
 
-The heavier alternatives (MR-MT3, ADTOF, BTC, BS-RoFormer) have **incompatible
-dependency stacks** (notably numpy 1.x vs 2.x), so each runs in its own isolated
-virtualenv and is invoked as a subprocess worker (`src/demixer/core/workers.py`,
-`scripts/*_worker.py`). The main environment stays clean; these engines are strictly
-opt-in.
-
-**BTC chord engine** (optional): clone the upstream model into `third_party/`:
+The PySide6 application provides drag-and-drop or file-picker input, engine
+selection, a live subprocess log, cancellation, and a file tree for the resulting
+output directory. It is exposed as the `demixer-gui` GUI script after installing
+the package's `gui` extra.
 
 ```bash
-git clone https://github.com/jayg996/BTC-ISMIR19 third_party/BTC
-# place the pretrained .pt weights under third_party/BTC/test/ (see that repo)
+uv run --extra gui demixer-gui
 ```
 
-## Architecture
+The GUI selects the same engines and invokes `python -m demixer.cli process`; it
+does not provide a separate processing backend.
 
-```
-src/demixer/
-├── core/
-│   ├── ingest.py            decode + loudness-normalize
-│   ├── separation.py        Demucs wrapper (+ separation_roformer.py)
-│   ├── analysis/            tempo_beats · key · chords · chords_btc · harmony
-│   ├── transcription/       pitched · drums · mt3 · drums_adtof
-│   ├── score/               quantize · musicxml · render (Verovio/MuseScore)
-│   ├── project/             reaper · dawproject · dragin
-│   ├── workers.py           isolated-venv subprocess worker protocol
-│   └── bundle.py            .demixer archive writer
-├── cli/                     `demixer process`
-├── app/                     PySide6 desktop shell
-└── eval/                    ground-truth matrix · consistency / SDR harnesses
-```
+## Requirements and current installation status
 
-## Evaluation
+The published package metadata targets **Python >=3.11,<3.12** and declares the
+`demixer` CLI plus the optional `demixer-gui` script. [uv](https://docs.astral.sh/uv/)
+is the repository's package manager. Audio ingest requires
+[FFmpeg](https://ffmpeg.org/) on `PATH`; [MuseScore](https://github.com/musescore/MuseScore) is
+needed only for PDF, MSCZ, PNG, and audio score renders.
 
-`src/demixer/eval/` holds accuracy harnesses: a ground-truth matrix scored against the
-Isophonics beat/chord annotations, transcription self-consistency, and separation SDR.
-The annotation set is fetched on demand:
+The repository does **not yet declare its runtime pipeline dependencies** in
+`pyproject.toml` (`project.dependencies` is empty). Consequently, a fresh
+`uv sync`, including the declared `dev` and `gui` extras, does not currently make
+the CLI runnable: imports such as NumPy and the audio/ML stack are absent. The
+optional research engines also require their own repository-root virtual
+environments (`.venv-btc`, `.venv-mt3`, `.venv-adtof`, and `.venv-roformer`) and,
+for BTC, a local `third_party/BTC` checkout and checkpoint.
+
+This is a known distribution gap, not a supported one-command installation path.
+Until runtime dependencies and worker setup are published, use a pre-provisioned
+development environment or treat the repository as source and test material.
+
+Package metadata and generated bundle manifests currently report version `0.1.0`.
+
+## Development and evaluation
+
+The test suite exercises format writers, bundle layout, CLI helpers, core analysis,
+loop detection, transcription helpers, worker availability, the GUI option bridge,
+and ground-truth annotation parsing. It includes an Isophonics annotation tree for
+the ground-truth matrix; real-audio evaluation is deliberately separate from the
+ordinary test suite.
+
+Once a complete local environment is available, the repository's configured quality
+commands are:
 
 ```bash
-bash tests/groundtruth/fetch_isophonics.sh
+uv run pytest
+uv run ruff check .
+uv run mypy
 ```
 
-Harnesses that need real audio read tracks from `--music-root` / `--tracks` or the
-`DEMIXER_MUSIC_ROOT` / `DEMIXER_EVAL_TRACKS` environment variables.
+At the current revision, these commands are not a clean verification baseline in a
+fresh checkout: the dependency declaration prevents normal test collection, and
+the configured Ruff and mypy checks have existing findings. They are shown here as
+the repository's intended commands, not as a claim of passing CI.
 
-## Development
+For an on-demand ground-truth run, the matrix accepts a music root and optional
+artist/album limits:
 
 ```bash
-uv run pytest          # test suite
-uv run ruff check .    # lint
-uv run mypy            # type-check (strict)
+python -m demixer.eval.groundtruth_matrix --music-root /path/to/music --limit 10
 ```
+
+It requires the full analysis environment and real audio files; it is not an
+offline performance or accuracy guarantee.
+
+## Project status
+
+This is experimental software. Its architecture is intentionally practical about
+incompatible model stacks: heavier alternatives communicate through files and
+subprocess workers rather than being forced into one fragile environment. The
+trade-off is that worker provisioning, model availability, and output quality need
+to be verified by the operator for each workflow.
 
 ## License
 
-[AGPL-3.0-or-later](LICENSE). demixer builds on Demucs, beat_this, essentia, autochord,
-basic-pitch, music21, and other open-source projects — each retains its own license.
+demixer is licensed under [AGPL-3.0-or-later](LICENSE). It integrates and can be
+used alongside multiple third-party libraries, models, and reference annotations;
+their licenses and distribution terms remain separate responsibilities.
