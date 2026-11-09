@@ -159,6 +159,14 @@ Install the desktop shell separately with `uv sync --extra gui`. For contributor
 the optional BS-RoFormer package; BTC, MT3, and ADTOF continue to use their
 documented isolated worker environments.
 
+**Model-extra security status (2026-11-09):** the lockfile has 14 open advisories
+for Keras and protobuf in the optional `worker`/`roformer` dependency paths.
+Neither dependency is in the default or development-only installation. Basic
+Pitch's current TensorFlow constraints prevent selecting the patched Keras and
+protobuf versions, so these model extras are not security-cleared for deployment.
+Resolving this requires a compatible model-stack migration and inference checks;
+the lightweight CLI/writer tests do not establish that readiness.
+
 Essentia publishes wheels only for supported platform/Python combinations. If
 installation reports that no Essentia distribution is available for your
 platform, install Essentia using its upstream platform instructions before

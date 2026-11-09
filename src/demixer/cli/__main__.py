@@ -192,7 +192,7 @@ def cmd_process(args: argparse.Namespace) -> int:
     except ModuleNotFoundError as exc:
         log.error(
             "The experimental pipeline runtime is not installed (%s). "
-            "See README.md#requirements-and-current-installation-status.",
+            "See README.md#installation.",
             exc.name,
         )
         return 2

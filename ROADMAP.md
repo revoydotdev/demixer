@@ -29,6 +29,13 @@ passing tests; Isophonics results were key 0.763, tempo 0.916, and chord majmin
 baseline added above.
 
 Outstanding work:
+- **Model-stack dependency migration:** 14 open Keras/protobuf advisories remain
+  confined to optional worker/roformer paths. Basic Pitch 0.4 constrains TensorFlow
+  below 2.15.1; the locked TensorFlow line constrains Keras below 2.15 and protobuf
+  below 5, below advisory patch floors. Replace or migrate that stack and verify
+  inference compatibility before calling model extras deployment-ready. Default
+  and dev-only installs do not include these two dependencies. No model install,
+  inference run or unsafe constraint override was used in this review.
 - **ADTOF drums**: shipped opt-in (`--drums adtof`, onset-F1 0.975 vs 0.825 spectral); not promoted to default pending an ear-check on real-stem class accuracy.
 - **YourMT3+ polyphony**: upgrade path researched and attempted; blocked by upstream breakage (inference adapter broken, pytorch-port LFS smudge broken as of 2026-05-24).
 - **Score engraving quality**: current fixed 16th-grid quantization is robust but naive; learned rhythm quantization (arXiv:2508.19262) identified as the highest perceived-quality gain — medium-high effort, deferred.
