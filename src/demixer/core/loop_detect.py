@@ -40,16 +40,13 @@ def detect_loop_period(
 
     `samples` is `(channels, n)` or `(n,)` float32 audio. Confidence is the
     normalized autocorrelation peak; the default 0.92 threshold rejects
-    generic music (which sits around 0.4–0.7) and accepts clean loops (>0.95
+    generic music (which sits around 0.4-0.7) and accepts clean loops (>0.95
     on the Encarta MindMaze QUESTION/BGLOOPx renders).
 
     Also requires the detected period to evenly divide the input duration
     within 1 % — true loops repeat an integer number of times.
     """
-    if samples.ndim == 2:
-        mono = samples.mean(axis=0)
-    else:
-        mono = samples
+    mono = samples.mean(axis=0) if samples.ndim == 2 else samples
     mono = mono.astype(np.float32, copy=False)
     n_full = mono.size
     if n_full == 0:
@@ -94,26 +91,69 @@ def detect_loop_period(
     if max_lag <= min_lag:
         return None
     region = ac[min_lag:max_lag]
-    peak_rel = int(np.argmax(region))
-    confidence = float(region[peak_rel])
-    if confidence < min_confidence:
-        return None
-
-    period_ds = min_lag + peak_rel
-    period_samples = int(round(period_ds * step))
-    period_s = period_samples / sample_rate
-    n_repeats = int(round(n_full / period_samples))
-
-    # True loops repeat ≥ 2× and divide the input within ~1 %.
-    if n_repeats < 2:
-        return None
-    residual = abs(n_full - n_repeats * period_samples) / max(n_full, 1)
-    if residual > 0.01:
-        return None
-
-    return LoopDetection(
-        period_samples=period_samples,
-        period_s=period_s,
-        confidence=confidence,
-        n_repeats=n_repeats,
+    peak_value = float(np.max(region))
+    # Repeated periods and their integer multiples are all correlation peaks.
+    # A small tolerance also absorbs coverage-correction drift for smooth
+    # signals; it is separate from the conservative confidence floor. Then
+    # choose the earliest period that also fits the input duration.
+    tie_tolerance = max(1e-3, abs(peak_value) * 1e-3)
+    local_maxima = np.ones(region.shape, dtype=bool)
+    if region.size > 1:
+        local_maxima[0] = region[0] >= region[1]
+        local_maxima[-1] = region[-1] >= region[-2]
+    if region.size > 2:
+        local_maxima[1:-1] = (region[1:-1] >= region[:-2]) & (region[1:-1] >= region[2:])
+    peak_candidates = np.flatnonzero(
+        local_maxima
+        & (region >= min_confidence)
+        & (region >= peak_value - tie_tolerance)
     )
+    if peak_candidates.size == 0:
+        return None
+
+    # Sub-minimum loops must not be re-labelled as a longer harmonic. Ignore
+    # the near-zero-lag autocorrelation shoulder; only strong local peaks from
+    # 100 ms up to the configured search floor count as shorter periods.
+    short_min_lag = max(1, int(0.1 * sr_ds))
+    short_region = ac[short_min_lag:min_lag]
+    short_peaks = np.zeros(short_region.shape, dtype=bool)
+    if short_region.size > 1:
+        short_peaks[0] = short_region[0] >= short_region[1]
+        short_peaks[-1] = short_region[-1] >= short_region[-2]
+    if short_region.size > 2:
+        short_peaks[1:-1] = (
+            (short_region[1:-1] >= short_region[:-2])
+            & (short_region[1:-1] >= short_region[2:])
+        )
+    short_period_lags = (
+        np.flatnonzero(short_peaks & (short_region >= min_confidence)) + short_min_lag
+    )
+
+    for peak_rel in peak_candidates:
+        period_ds = min_lag + int(peak_rel)
+        period_samples = round(period_ds * step)
+        n_repeats = round(n_full / period_samples)
+
+        # True loops repeat at least twice and divide the input within ~1 %.
+        if n_repeats < 2:
+            continue
+        residual = abs(n_full - n_repeats * period_samples) / max(n_full, 1)
+        if residual > 0.01:
+            continue
+
+        # If this candidate is an integer multiple of a strong period below the
+        # configured minimum, it is a harmonic, not an admissible loop period.
+        has_shorter_period = bool(
+            short_period_lags.size
+            and np.any(period_ds % short_period_lags == 0)
+        )
+        if has_shorter_period:
+            continue
+
+        return LoopDetection(
+            period_samples=period_samples,
+            period_s=period_samples / sample_rate,
+            confidence=float(ac[period_ds]),
+            n_repeats=n_repeats,
+        )
+    return None

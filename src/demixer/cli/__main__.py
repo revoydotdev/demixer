@@ -169,9 +169,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def cmd_process(args: argparse.Namespace) -> int:
     # Keep parser and ``demixer process --help`` usable from a fresh checkout.
-    # The experimental pipeline's heavyweight runtime is intentionally not
-    # declared as an installable dependency set yet; importing it at module load
-    # time made even help text crash before we could explain that limitation.
+    # Worker dependencies remain optional; importing the pipeline at module
+    # load time would make help text depend on those optional installations.
     try:
         import numpy as np
 

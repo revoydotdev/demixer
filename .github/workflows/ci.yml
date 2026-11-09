@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux-python-311:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install locked development environment
+        run: uv sync --frozen --extra dev
+      - name: CLI install smoke check
+        run: |
+          uv run --frozen demixer --help
+          uv run --frozen demixer process --help
+      - name: Bundle and project writer tests
+        run: >-
+          uv run --frozen python -m pytest -q
+          tests/test_bundle.py tests/test_project_dawproject.py
+          tests/test_project_dragin.py tests/test_project_reaper.py
+          tests/test_loop_detect.py tests/test_cli.py
+      - name: Lint changed Python modules
+        run: >-
+          uv run --frozen ruff check src/demixer/core/separation.py
+          src/demixer/core/loop_detect.py src/demixer/core/project/dawproject.py

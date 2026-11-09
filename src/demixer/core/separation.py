@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import soundfile as sf
-import torch
 
 from demixer.core.ingest import IngestedAudio
 
@@ -43,6 +42,10 @@ class SeparationResult:
 
 
 def _pick_device(prefer_cuda: bool) -> str:
+    # Keep CLI discovery and the lightweight test/runtime install independent
+    # of PyTorch. The model stack is only needed when separation is requested.
+    import torch
+
     if prefer_cuda and torch.cuda.is_available():
         return "cuda"
     return "cpu"
@@ -68,6 +71,7 @@ def separate(
     extra). drums/bass/other still come from Demucs.
     """
     # Imported lazily so test discovery / `--help` don't pay the torch+demucs cost
+    import torch
     from demucs.apply import apply_model
     from demucs.pretrained import get_model
 
@@ -126,11 +130,11 @@ def separate(
 # Stems whose peak amplitude is below this are treated as empty. Demucs zeroes
 # out absent sources (e.g. drums on a vocal-only track), so writing them is pure
 # I/O waste — a 3-minute float32 stereo stem of silence is ~60 MB on disk and
-# the same bytes again inside every downstream DAW project. −40 dBFS sits well
+# the same bytes again inside every downstream DAW project. -40 dBFS sits well
 # above dither/noise-floor and well below any musically present part.
 _SILENT_STEM_PEAK = 0.01
 
-# Container/subtype per stem format. FLAC compresses to ~30–60 % of PCM_16 for
+# Container/subtype per stem format. FLAC compresses to ~30-60 % of PCM_16 for
 # music and to near-zero for silent regions; PCM_24 is the mastering-quality
 # default; PCM_16 is CD-quality and a quarter the size of FLOAT; FLOAT preserves
 # bit-exact ML output for downstream re-feeding.
@@ -160,7 +164,7 @@ def separate_loop_aware(
     Falls back transparently to a full `separate()` call when the input does
     not look like a tight loop (most music). When a loop *is* detected, only
     one period plus a small leading context window is fed to Demucs — the
-    other (N−1) periods are reconstructed by tiling, cutting separation cost
+    other (N-1) periods are reconstructed by tiling, cutting separation cost
     by ~N for loop-heavy corpora.
 
     Returns `(SeparationResult, LoopDetection | None)`; the second element is
@@ -223,14 +227,14 @@ def write_stems(
 ) -> dict[str, Path]:
     """Write each non-silent stem to `out_dir/<stem>.<ext>`.
 
-    Silent stems (peak < −40 dBFS) are skipped — they would otherwise propagate
+    Silent stems (peak < -40 dBFS) are skipped — they would otherwise propagate
     full-size copies of silence into every DAW project and the .demixer archive.
 
     `stem_format` controls the on-disk container/precision:
       - "pcm24" (default): 24-bit WAV, mastering quality, ~3/4 the size of float32
       - "pcm16":            16-bit WAV, CD quality, ~1/4 the size of float32
       - "float":            32-bit float WAV, bit-exact Demucs output (legacy)
-      - "flac":             24-bit FLAC, lossless, typically 30–60 % of PCM_24
+      - "flac":             24-bit FLAC, lossless, typically 30-60 % of PCM_24
 
     Returns name → path for the stems that were actually written.
     """

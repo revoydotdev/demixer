@@ -17,6 +17,7 @@ import numpy as np
 import pretty_midi
 import soundfile as sf
 
+from demixer import __version__
 from demixer.core.analysis.key import KeyEstimate
 from demixer.core.analysis.tempo_beats import TempoBeats
 from demixer.core.project.dawproject import StemTrack, write_dawproject
@@ -93,6 +94,8 @@ def test_project_xml_structure(tmp_path: Path) -> None:
 
     assert root.tag == "Project"
     assert root.attrib["version"] == "1.0"
+    application = root.find("Application")
+    assert application is not None and application.attrib["version"] == __version__
 
     transport = root.find("Transport")
     assert transport is not None

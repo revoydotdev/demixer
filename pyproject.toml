@@ -1,24 +1,40 @@
 [project]
 name = "demixer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Experimental audio-to-production-material pipeline: stems, MIDI, MusicXML scores, DAW-handoff files, and optional musical analysis."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "revelri" }]
-dependencies = []
+dependencies = [
+    "essentia>=2.1b6.dev1110",
+    "librosa>=0.10.2",
+    "music21>=9.1",
+    "numpy>=1.26",
+    "pretty-midi>=0.2.10",
+    "pyloudnorm>=0.1.1",
+    "soundfile>=0.12.1",
+    "verovio>=4.3",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "mypy>=1.10",
-    "pyflp>=2.2.1",   # round-trip parser for the .flp writer tests (not a runtime dep)
-    "pretty_midi",    # MIDI parsing in the DAW exporters
-    "soundfile",      # writes the throwaway WAVs the .flp tests reference
+    "pyflp>=2.2.1",   # round-trip parser for the .flp writer tests
 ]
 gui = [
     "PySide6>=6.6",
+]
+worker = [
+    "basic-pitch>=0.3.2",
+    "beat-this>=0.1.5",
+    "demucs>=4.0.1",
+    "torch>=2.2",
+]
+roformer = [
+    "audio-separator>=0.30",
 ]
 
 [project.scripts]

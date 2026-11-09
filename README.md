@@ -135,7 +135,7 @@ uv run --extra gui demixer-gui
 The GUI selects the same engines and invokes `python -m demixer.cli process`; it
 does not provide a separate processing backend.
 
-## Requirements and current installation status
+## Installation
 
 The published package metadata targets **Python >=3.11,<3.12** and declares the
 `demixer` CLI plus the optional `demixer-gui` script. [uv](https://docs.astral.sh/uv/)
@@ -143,19 +143,28 @@ is the repository's package manager. Audio ingest requires
 [FFmpeg](https://ffmpeg.org/) on `PATH`; [MuseScore](https://github.com/musescore/MuseScore) is
 needed only for PDF, MSCZ, PNG, and audio score renders.
 
-The repository does **not yet declare its runtime pipeline dependencies** in
-`pyproject.toml` (`project.dependencies` is empty). Consequently, a fresh
-`uv sync`, including the declared `dev` and `gui` extras, does not currently make
-the CLI runnable: imports such as NumPy and the audio/ML stack are absent. The
-optional research engines also require their own repository-root virtual
-environments (`.venv-btc`, `.venv-mt3`, `.venv-adtof`, and `.venv-roformer`) and,
-for BTC, a local `third_party/BTC` checkout and checkpoint.
+Install the package and its declared runtime dependencies with uv:
 
-This is a known distribution gap, not a supported one-command installation path.
-Until runtime dependencies and worker setup are published, use a pre-provisioned
-development environment or treat the repository as source and test material.
+```bash
+uv sync
+uv run demixer --help
+```
 
-Package metadata and generated bundle manifests currently report version `0.1.0`.
+The base install supports the CLI, analysis, MIDI/score generation, and project
+writers. Full audio processing also needs FFmpeg on `PATH` and the model-backed
+engines in the `worker` extra. That extra installs PyTorch, Demucs, Basic Pitch,
+and beat-this; model checkpoints are fetched by those engines when first used.
+Install the desktop shell separately with `uv sync --extra gui`. For contributors,
+`uv sync --extra dev` installs the test and lint tools. The `roformer` extra adds
+the optional BS-RoFormer package; BTC, MT3, and ADTOF continue to use their
+documented isolated worker environments.
+
+Essentia publishes wheels only for supported platform/Python combinations. If
+installation reports that no Essentia distribution is available for your
+platform, install Essentia using its upstream platform instructions before
+installing Demixer.
+
+Package metadata and generated bundle manifests report version `0.2.0`.
 
 ## Development and evaluation
 
@@ -165,19 +174,18 @@ and ground-truth annotation parsing. It includes an Isophonics annotation tree f
 the ground-truth matrix; real-audio evaluation is deliberately separate from the
 ordinary test suite.
 
-Once a complete local environment is available, the repository's configured quality
-commands are:
+CI uses a clean Python 3.11 environment, installs only development dependencies
+(no model workers or model checkpoints), checks the CLI help paths, and runs the
+offline bundle/project writer tests:
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run mypy
+uv run python -m pytest -q tests/test_bundle.py tests/test_project_dawproject.py \
+  tests/test_project_dragin.py tests/test_project_reaper.py tests/test_loop_detect.py
 ```
 
-At the current revision, these commands are not a clean verification baseline in a
-fresh checkout: the dependency declaration prevents normal test collection, and
-the configured Ruff and mypy checks have existing findings. They are shown here as
-the repository's intended commands, not as a claim of passing CI.
+CI lints the touched Python modules. `ruff check .` and `mypy` remain available
+as local contributor commands; the repository has pre-existing findings outside
+that focused CI lint scope.
 
 For an on-demand ground-truth run, the matrix accepts a music root and optional
 artist/album limits:

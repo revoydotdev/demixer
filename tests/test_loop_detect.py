@@ -29,6 +29,18 @@ def test_detects_clean_loop() -> None:
     assert det.confidence > 0.99
 
 
+def test_detects_smooth_loop_at_peak_instead_of_threshold_crossing() -> None:
+    sr = 44100
+    t = np.arange(sr * 10, dtype=np.float32) / sr
+    period = 2.0
+    one_period = 0.7 * np.sin(2 * np.pi * 0.5 * t) + 0.3 * np.sin(2 * np.pi * 1.5 * t)
+    mono = one_period.astype(np.float32)
+    det = detect_loop_period(mono, sr)
+    assert det is not None
+    assert abs(det.period_s - period) < 0.02
+    assert det.n_repeats == 5
+
+
 def test_rejects_non_loop_noise() -> None:
     sr = 44100
     rng = np.random.default_rng(123)

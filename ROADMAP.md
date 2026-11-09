@@ -2,19 +2,33 @@ End-to-end music deconstruction tool: separates a song into stems (Demucs), tran
 
 ## Current phase
 
-Distribution hold — demixer remains experimental source material, not a
-one-command installable release. Its `project.dependencies` intentionally does
-not yet declare the audio/ML runtime or isolated model workers, so a fresh
-`uv sync` can show CLI help but cannot process audio. Historical end-to-end and
-ground-truth measurements are not a current release verification claim until a
-reproducible runtime and test baseline are published. Package version: 0.1.0;
-license: AGPL-3.0-or-later.
+### 2026-11-09 — installation and CI hardening
+
+- Declared the supported runtime imports and added optional `worker`, `gui`, and
+  `roformer` dependency groups. CLI help and test collection no longer import
+  PyTorch; the model dependency is loaded only when separation is requested.
+- Fixed loop detection choosing a later harmonic when floating-point noise gave
+  it a marginally higher correlation score; the detector now selects its earliest
+  qualifying candidate. Added focused loop tests and touched-module lint to CI.
+- Added a clean Python 3.11 CI job for CLI smoke checks and focused functional
+  tests. It does not install model workers or fetch model checkpoints.
+- Aligned the package and bundle version at 0.2.0. Clean-environment validation
+  passed CLI help, lock consistency, focused Ruff, and the focused writer/loop
+  tests (32 in the first run; the loop regression then passed as 7 tests and the
+  DAWproject version check as 5 tests). Full repository Ruff still has
+  pre-existing findings; no hosted CI run is claimed.
+- Integration preserved the remote CLI lazy-import fix and attribution workflow.
+  The combined CLI/writer/loop selection passed 37 tests in 1.02 seconds; no
+  broad suite, model inference or workflow dispatch ran during integration.
+- DAWproject application metadata now reads the package version instead of a
+  stale hard-coded 0.0.1; the focused writer test checks the version field.
+
+Earlier pipeline validation (2026-05-24) covered 20+ genres and reported 129
+passing tests; Isophonics results were key 0.763, tempo 0.916, and chord majmin
+0.752 with BTC. That historical result does not replace the clean-install CI
+baseline added above.
 
 Outstanding work:
-- **Reproducible distribution**: declare, lock, and test a supported runtime
-  profile (including FFmpeg, model weights, and worker setup) before claiming a
-  clean-install processing path or current accuracy figures.
-- **PySide6 GUI**: interaction logic wired — file picker, live pipeline progress, and an output file tree reflecting the real run output (smoke-tested).
 - **ADTOF drums**: shipped opt-in (`--drums adtof`, onset-F1 0.975 vs 0.825 spectral); not promoted to default pending an ear-check on real-stem class accuracy.
 - **YourMT3+ polyphony**: upgrade path researched and attempted; blocked by upstream breakage (inference adapter broken, pytorch-port LFS smudge broken as of 2026-05-24).
 - **Score engraving quality**: current fixed 16th-grid quantization is robust but naive; learned rhythm quantization (arXiv:2508.19262) identified as the highest perceived-quality gain — medium-high effort, deferred.

@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pretty_midi
 
+from demixer import __version__
 from demixer.core.analysis.key import KeyEstimate
 from demixer.core.analysis.tempo_beats import TempoBeats
 
@@ -59,7 +60,7 @@ def _build_project_xml(
     root = ET.Element("Project", attrib={"version": DAWPROJECT_VERSION})
 
     # Application — required
-    ET.SubElement(root, "Application", attrib={"name": "demixer", "version": "0.0.1"})
+    ET.SubElement(root, "Application", attrib={"name": "demixer", "version": __version__})
 
     # Transport — tempo + time signature
     transport = ET.SubElement(root, "Transport")
